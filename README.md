@@ -1,4 +1,4 @@
-<img src="https://github.build.ge.com/200005014/rt106/raw/add-icon-in-README/rt106.png" width="150"  title="Rt 106 Logo" align="left">
+<img src="https://github.build.ge.com/rt106/rt106/raw/add-icon-in-README/rt106.png" width="150"  title="Rt 106 Logo" align="left">
 Rt 106 is a scalable, containerized analytics and application framework. Rt 106
 provides analytic developers the flexibility to write analytics in any language
 (C++, Python, Java) and deploy analytics with a web application
