@@ -16,3 +16,5 @@ architecture using:
 * Cornerstone
 * Python
 * Flask
+* Consul
+* Registrator
