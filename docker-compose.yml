@@ -1,0 +1,80 @@
+version: '3'
+services:
+  # one instance of consul in server mode, can use multiple on different VMs for redundancy
+  consul:
+    command: -server -bootstrap-expect 1
+    image: progrium/consul:latest
+    ports:
+    - 8300:8300
+    - 8400:8400
+    - 8500:8500
+    - 8600:53/udp
+  # one instance of registrator for each VM running containers for the platform or for analytics
+  registrator:
+    command: -internal consul://consul:8500
+    image: gliderlabs/registrator:latest
+    links:
+    - consul
+    volumes:
+    - /var/run/docker.sock:/tmp/docker.sock
+  # one instance of rabbitmq for the platform
+  rabbitmq:
+    image: rt106/rt106-rabbitmq:latest
+    ports:
+    - 5672:5672
+    - 15672:15672
+  # datastore can scale if placed behind a load balancer
+  datastore:
+    image: rt106/rt106-datastore-local:latest
+    ports:
+    - 5106:5106
+    environment:
+      SERVICE_NAME: datastore
+    volumes:
+    - "${LOCAL_DATA_DIR}:/rt106/data"
+  # one instance of mysql for the platform
+  mysql:
+    image: rt106/rt106-mysql:latest
+    ports:
+    - 3306:3306
+    volumes:
+    - rt106-mysql-volume:/var/lib/mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: rt106mysql
+  # web server can scale if placed behind a load balancer
+  web:
+    image: rt106/rt106-frontend:latest
+    ports:
+    - 80:8106
+    environment:
+      SERVICE_NAME: web
+    depends_on:
+    - "rabbitmq"
+
+  #
+  # algorithms
+  #
+  # algorithms can scale (we cannot expose the port to the host, but we still need to list a port for
+  #   Registrator to recognize), the DNS in Consul will provide a unique port number to route through
+  #
+  # an example algorithm that demonstrates how to add an algorithm to Rt 106
+  algorithmtemplate:
+    image: rt106/rt106-algorithm-sdk:latest
+    ports:
+    - 7106
+    environment:
+     MSG_SYSTEM: amqp
+     SERVICE_NAME: algorithm-template--v1_0_0
+     SERVICE_TAGS: analytic
+  # an example algorithm for segmenting 3D images based on ITK
+  simple-region-growing:
+    image: rt106/rt106-simple-region-growing:latest
+    ports:
+    - 7106
+    environment:
+     MSG_SYSTEM: amqp
+     SERVICE_NAME: simple-region-growing--v1_0_0
+     SERVICE_TAGS: analytic
+
+volumes:
+  rt106-mysql-volume:
