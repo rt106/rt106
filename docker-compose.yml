@@ -1,39 +1,62 @@
 version: '3'
 services:
+  # GETTING HIGH VULNERABILITY for consul
+  # NEED TO disable consul and registrator until we update to new versins
+  #
   # one instance of consul in server mode, can use multiple on different VMs for redundancy
-  consul:
-    command: -server -bootstrap-expect 1
-    image: progrium/consul:latest
-    ports:
-    - 8300:8300
-    - 8400:8400
-    - 8500:8500
-    - 8600:53/udp
+  #  consul:
+  #    restart: always
+  #    command: -server -bootstrap-expect 1
+  #    image: progrium/consul:latest
+  #    ports:
+  #    - 8300:8300
+  #    - 8400:8400
+  #    - 8500:8500
+  #    - 8600:53/udp
   # one instance of registrator for each VM running containers for the platform or for analytics
   registrator:
+    restart: always
     command: -internal consul://consul:8500
     image: gliderlabs/registrator:latest
     links:
     - consul
     volumes:
     - /var/run/docker.sock:/tmp/docker.sock
+ 
+ 
+  # Update to use lastest version of consul
+  consul:
+    restart: always
+    command: agent -server -ui -node=server-1 -bootstrap-expect=1 -client=0.0.0.0
+    image: hashicorp/consul:latest
+    ports:
+    - 8300:8300
+    - 8400:8400
+    - 8500:8500
+    - 8600:53/udp
+
   # one instance of rabbitmq for the platform
   rabbitmq:
+    restart: always
     image: rt106/rt106-rabbitmq:latest
     ports:
     - 5672:5672
     - 15672:15672
   # datastore can scale if placed behind a load balancer
   datastore:
+    restart: always
     image: rt106/rt106-datastore-local:latest
+    user: "${UID}:${GID}"
     ports:
     - 5106:5106
     environment:
       SERVICE_NAME: datastore
     volumes:
+            #- "/rt106/data:/rt106/data"
     - "${LOCAL_DATA_DIR}:/rt106/data"
   # one instance of mysql for the platform
   mysql:
+    restart: always
     image: rt106/rt106-mysql:latest
     ports:
     - 3306:3306
@@ -43,7 +66,8 @@ services:
       MYSQL_ROOT_PASSWORD: rt106mysql
   # web server can scale if placed behind a load balancer
   web:
-    image: rt106/rt106-frontend:latest
+    restart: always
+    image: rt106/rt106-frontend:revised
     ports:
     - 80:8106
     environment:
@@ -57,8 +81,22 @@ services:
   # algorithms can scale (we cannot expose the port to the host, but we still need to list a port for
   #   Registrator to recognize), the DNS in Consul will provide a unique port number to route through
   #
+  radiomics-coliage:
+    image: rt106/radiomics-coliage:latest
+    ports:
+    - 7106
+    environment:
+     HTTP_PROXY: ""
+     HTTPS_PROXY: ""
+     http_proxy: ""
+     https_proxy: ""
+     MSG_SYSTEM: amqp
+     SERVICE_NAME: radiomics-coliage--v1_0_0
+     SERVICE_TAGS: analytic
+
   # an example algorithm that demonstrates how to add an algorithm to Rt 106
   algorithmtemplate:
+    restart: always
     image: rt106/rt106-algorithm-sdk:latest
     ports:
     - 7106
@@ -68,6 +106,7 @@ services:
      SERVICE_TAGS: analytic
   # an example algorithm for segmenting 3D images based on ITK
   simple-region-growing:
+    restart: always
     image: rt106/rt106-simple-region-growing:latest
     ports:
     - 7106
