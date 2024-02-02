@@ -1,0 +1,68 @@
+version: '3'
+services:
+
+  # one instance of rabbitmq for the platform
+  rabbitmq:
+    image: rt106/rt106-rabbitmq:latest
+    ports:
+    - 5672:5672
+    - 15672:15672
+
+  # datastore can scale if placed behind a load balancer
+  datastore:
+    env_file: .env
+    image: rt106/rt106-datastore-local:latest
+    ports:
+    - 5106:5106
+    environment:
+      SERVICE_NAME: datastore
+    volumes:
+    - "${LOCAL_DATA_DIR}:/rt106/data"
+
+  #
+  # algorithms
+  #
+  # algorithms can scale (we cannot expose the port to the host, but we still need to list a port for
+  #   Registrator to recognize), the DNS in Consul will provide a unique port number to route through
+  #
+  # an example algorithm that demonstrates how to add an algorithm to Rt 106
+  algorithmtemplate:
+    image: rt106/rt106-algorithm-sdk:latest
+    ports:
+    - 7106
+    environment:
+     MSG_SYSTEM: amqp
+     SERVICE_NAME: algorithm-template--v1_0_0
+     SERVICE_TAGS: analytic
+  # an example algorithm for segmenting 3D images based on ITK
+  simple-region-growing:
+    image: rt106/rt106-simple-region-growing:latest
+    ports:
+    - 7106
+    environment:
+     MSG_SYSTEM: amqp
+     SERVICE_NAME: simple-region-growing--v1_0_0
+     SERVICE_TAGS: analytic
+
+#  nanalytic:
+#    image: rt106/rt106-nanalytic-example:latest
+#    ports:
+#    - 7106
+#    environment:
+#     MSG_SYSTEM: amqp
+#     SERVICE_NAME: algorithm-nanalytic--v1_0_0
+#     SERVICE_TAGS: analytic
+
+  radiomics-coliage:
+    image: gbm-radiomics-ai/coliage:latest
+    security_opt:
+      - seccomp:unconfined
+    ports:
+    - 7106
+    environment:
+     MSG_SYSTEM: amqp
+     SERVICE_NAME: radiomics-coliage--v1_0_0
+     SERVICE_TAGS: analytic
+
+volumes:
+  rt106-mysql-volume:
